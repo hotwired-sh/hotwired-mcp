@@ -126,11 +126,30 @@ Add to your MCP configuration:
 
 ## Security
 
-This MCP server:
+### Why Unix Sockets (Not HTTP/localhost)
 
+We deliberately use **Unix sockets** instead of HTTP on localhost. This is a critical security design choice.
+
+Many MCP tools have been vulnerable to **DNS rebinding attacks** and **0.0.0.0 bypass exploits** because they expose HTTP servers on localhost. These vulnerabilities allow malicious websites to:
+
+- Send requests to localhost services via DNS rebinding
+- Bypass browser same-origin policy through the 0.0.0.0 loophole
+- Achieve remote code execution with no user interaction
+
+**Unix sockets are immune to these attacks:**
+
+- ❌ No TCP/HTTP listener - browsers cannot connect
+- ❌ No DNS rebinding possible - not a network protocol
+- ❌ No 0.0.0.0 bypass - sockets are filesystem-based
+- ✅ Protected by filesystem permissions
+- ✅ Only local processes can connect
+
+### What This MCP Server Does NOT Do
+
+- **Does NOT open any network ports** - no HTTP, no TCP, no localhost
 - **Does NOT make any external network requests**
-- Connects only to the local Unix socket (`~/.hotwired/hotwired.sock`)
-- Does not read or modify files outside its scope
+- **Does NOT read or modify files** outside its scope
+- Connects **only** to the local Unix socket (`~/.hotwired/hotwired.sock`)
 - Source code is fully auditable
 
 ## Development

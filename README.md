@@ -59,36 +59,17 @@ The only external connection the Hotwired Desktop App makes is for **authenticat
 
 ## Installation
 
-### Via npx (Recommended)
+### For Claude Code Users
 
-```bash
-npx hotwired-mcp
-```
-
-### Via npm
-
-```bash
-npm install -g hotwired-mcp
-hotwired-mcp
-```
-
-### Via Cargo (Build from Source)
-
-```bash
-cargo install --git https://github.com/hotwired-sh/hotwired-mcp
-```
-
-## Usage
-
-### With Claude Code
-
-Use the [Hotwired Claude Plugin](https://github.com/hotwired-sh/claude-plugin) which configures this automatically:
+**Just install the [Hotwired Claude Plugin](https://github.com/hotwired-sh/claude-plugin)** - it handles everything automatically:
 
 ```bash
 claude plugin install hotwired
 ```
 
-### Manual MCP Configuration
+The plugin runs `npx hotwired-mcp@latest` under the hood, so you'll always have the latest version. No manual installation needed.
+
+### For Other MCP-Compatible Agents
 
 Add to your MCP configuration:
 
@@ -97,10 +78,18 @@ Add to your MCP configuration:
   "mcpServers": {
     "hotwired": {
       "command": "npx",
-      "args": ["hotwired-mcp"]
+      "args": ["hotwired-mcp@latest"]
     }
   }
 }
+```
+
+### Building from Source
+
+If you prefer to audit and build the code yourself:
+
+```bash
+cargo install --git https://github.com/hotwired-sh/hotwired-mcp
 ```
 
 ## Prerequisites

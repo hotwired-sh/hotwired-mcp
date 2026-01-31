@@ -54,7 +54,7 @@ The only external connection the Hotwired Desktop App makes is for **authenticat
 claude plugin install hotwired
 ```
 
-The plugin runs `npx hotwired-mcp@latest` under the hood, so you'll always have the latest version. No manual installation needed.
+The plugin runs `npx @hotwired-sh/hotwired-mcp@latest` under the hood, so you'll always have the latest version. No manual installation needed.
 
 ### For Other MCP-Compatible Agents
 
@@ -65,7 +65,7 @@ Add to your MCP configuration:
   "mcpServers": {
     "hotwired": {
       "command": "npx",
-      "args": ["hotwired-mcp@latest"]
+      "args": ["@hotwired-sh/hotwired-mcp@latest"]
     }
   }
 }

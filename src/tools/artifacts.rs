@@ -132,6 +132,7 @@ pub async fn create_artifact<C: IpcClient>(
 // =============================================================================
 
 /// Edit artifact content with conflict detection.
+#[allow(clippy::too_many_arguments)]
 pub async fn edit_artifact<C: IpcClient>(
     client: &C,
     run_id: &str,
@@ -215,6 +216,7 @@ pub fn format_edit_response(response: &DocArtifactEditResponse) -> String {
 // =============================================================================
 
 /// Search within an artifact.
+#[allow(clippy::too_many_arguments)]
 pub async fn search_artifact<C: IpcClient>(
     client: &C,
     run_id: &str,
@@ -281,6 +283,7 @@ pub fn format_search_response(response: &DocArtifactSearchResponse) -> String {
 
 /// Add a comment to an artifact.
 /// If `parent_comment_id` is provided, this creates a reply in an existing thread.
+#[allow(clippy::too_many_arguments)]
 pub async fn add_comment<C: IpcClient>(
     client: &C,
     run_id: &str,
@@ -507,6 +510,7 @@ pub fn format_list_response(response: &DocArtifactListResponse) -> String {
 /// Suggest an edit for an artifact (linked to a comment).
 /// This creates a suggestion that the human can Accept or Reject.
 /// When accepted, the edit is applied and the linked comment is resolved.
+#[allow(clippy::too_many_arguments)]
 pub async fn suggest_edit<C: IpcClient>(
     client: &C,
     run_id: &str,

@@ -139,6 +139,7 @@ pub fn validate_impediment_type(impediment_type: &str) -> Result<(), String> {
 }
 
 /// Report a blocker or impediment that prevents progress.
+#[allow(clippy::too_many_arguments)]
 pub async fn report_impediment<C: IpcClient>(
     client: &C,
     run_id: &str,

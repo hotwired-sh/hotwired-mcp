@@ -35,10 +35,12 @@ jobs:
 
       - name: Semantic Release (dry run)
         id: semantic
+        uses: cycjimmy/semantic-release-action@v4
+        with:
+          dry_run: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npx semantic-release --dry-run
 
   # Build binaries for all platforms
   build:

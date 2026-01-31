@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/hotwired-sh/hotwired-mcp/compare/v1.0.0...v1.0.1) (2026-01-31)
+
+
+### Bug Fixes
+
+* scopes repo ([6114db5](https://github.com/hotwired-sh/hotwired-mcp/commit/6114db50ef685647c4cfa304c8f34adca4ab5282))
+
 # 1.0.0 (2026-01-31)
 
 

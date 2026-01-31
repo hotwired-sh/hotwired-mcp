@@ -1,146 +1,13 @@
 use crate::ipc::traits::IpcClient;
 use crate::types::errors::IpcError;
 use async_trait::async_trait;
-
-/// Production IPC client using HTTP to communicate with Hotwired backend.
-/// This matches the TypeScript MCP's approach for consistency.
-pub struct HttpClient {
-    base_url: String,
-    client: reqwest::Client,
-}
-
-impl HttpClient {
-    /// Create a new HTTP client.
-    /// Default base URL: http://127.0.0.1:2222
-    /// Reads from TAURI_HTTP_API_PORT env var for worktree support.
-    pub fn new(base_url: Option<String>) -> Self {
-        let url = base_url.unwrap_or_else(|| {
-            let port = std::env::var("TAURI_HTTP_API_PORT").unwrap_or_else(|_| "2222".into());
-            format!("http://127.0.0.1:{}", port)
-        });
-        Self {
-            base_url: url,
-            client: reqwest::Client::new(),
-        }
-    }
-
-    /// Make a GET request to an endpoint
-    pub async fn get<Res>(&self, endpoint: &str) -> Result<Res, IpcError>
-    where
-        Res: serde::de::DeserializeOwned,
-    {
-        let url = format!("{}{}", self.base_url, endpoint);
-
-        let response = self
-            .client
-            .get(&url)
-            .header("Content-Type", "application/json")
-            .send()
-            .await
-            .map_err(|e| {
-                if e.is_connect() {
-                    IpcError::NotConnected
-                } else {
-                    IpcError::ConnectionFailed(e.to_string())
-                }
-            })?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let error_text = response.text().await.unwrap_or_default();
-            return Err(IpcError::RequestFailed(format!(
-                "HTTP {}: {}",
-                status, error_text
-            )));
-        }
-
-        response
-            .json()
-            .await
-            .map_err(|e| IpcError::InvalidResponse(e.to_string()))
-    }
-
-    /// Make a POST request to an endpoint
-    pub async fn post<Req, Res>(&self, endpoint: &str, body: &Req) -> Result<Res, IpcError>
-    where
-        Req: serde::Serialize + Send + Sync,
-        Res: serde::de::DeserializeOwned,
-    {
-        let url = format!("{}{}", self.base_url, endpoint);
-
-        let response = self
-            .client
-            .post(&url)
-            .header("Content-Type", "application/json")
-            .json(body)
-            .send()
-            .await
-            .map_err(|e| {
-                if e.is_connect() {
-                    IpcError::NotConnected
-                } else {
-                    IpcError::ConnectionFailed(e.to_string())
-                }
-            })?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let error_text = response.text().await.unwrap_or_default();
-            return Err(IpcError::RequestFailed(format!(
-                "HTTP {}: {}",
-                status, error_text
-            )));
-        }
-
-        response
-            .json()
-            .await
-            .map_err(|e| IpcError::InvalidResponse(e.to_string()))
-    }
-}
-
-#[async_trait]
-impl IpcClient for HttpClient {
-    async fn request<Req, Res>(&self, endpoint: &str, request: &Req) -> Result<Res, IpcError>
-    where
-        Req: serde::Serialize + Send + Sync,
-        Res: serde::de::DeserializeOwned,
-    {
-        self.post(endpoint, request).await
-    }
-
-    async fn health_check(&self) -> Result<(), IpcError> {
-        let url = format!("{}/api/health", self.base_url);
-
-        let response = self.client.get(&url).send().await.map_err(|e| {
-            if e.is_connect() {
-                IpcError::NotConnected
-            } else {
-                IpcError::ConnectionFailed(e.to_string())
-            }
-        })?;
-
-        if response.status().is_success() {
-            Ok(())
-        } else {
-            Err(IpcError::RequestFailed(format!(
-                "Health check failed: {}",
-                response.status()
-            )))
-        }
-    }
-}
-
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::UnixStream;
-use tokio::sync::Mutex;
 
 /// Unix socket client for communicating with Hotwired backend.
 /// This is the primary IPC mechanism, communicating with hotwired-core's SocketServer.
 pub struct UnixSocketClient {
     socket_path: String,
-    /// Cached connection (lazy-initialized)
-    stream: Mutex<Option<UnixStream>>,
     /// Auth token for request validation (read from ~/.hotwired/auth_token)
     auth_token: Option<String>,
 }
@@ -160,7 +27,9 @@ struct SocketRequest {
 /// Response format from socket server
 #[derive(Debug, serde::Deserialize)]
 struct SocketResponse {
+    /// Request ID for correlation (protocol field, may not be used in simple request/response)
     #[serde(default)]
+    #[allow(dead_code)]
     id: Option<String>,
     success: bool,
     #[serde(default)]
@@ -187,7 +56,6 @@ impl UnixSocketClient {
 
         Self {
             socket_path: path,
-            stream: Mutex::new(None),
             auth_token,
         }
     }

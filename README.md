@@ -4,12 +4,58 @@ MCP (Model Context Protocol) server for [Hotwired](https://hotwired.sh) multi-ag
 
 ## Why Open Source?
 
-This MCP server runs on your machine and connects to external services. We believe you should be able to:
+This MCP server runs on your machine. We open source it so you can:
 
 - **Audit** exactly what code runs on your machine
-- **Verify** what data is sent to Hotwired
+- **Verify** there are no external network calls
 - **Trust** that there's no hidden behavior
 - **Build from source** if you prefer
+
+## Architecture
+
+**Everything runs locally on your machine.** There are no external service dependencies.
+
+```mermaid
+flowchart TB
+    subgraph local["YOUR MACHINE"]
+        subgraph desktop["Hotwired Desktop App"]
+            core["Workflow Engine"]
+            socket["Unix Socket Server<br/>~/.hotwired/hotwired.sock"]
+        end
+
+        subgraph agents["AI Coding Agents"]
+            claude["Claude Code"]
+            gemini["Google Gemini"]
+            other["Other MCP-compatible agents"]
+        end
+
+        subgraph mcp["hotwired-mcp (this repo)"]
+            tools["MCP Tools"]
+            ipc["IPC Client"]
+        end
+
+        claude -->|"runs"| mcp
+        gemini -->|"runs"| mcp
+        other -->|"runs"| mcp
+
+        ipc <-->|"Unix Socket<br/>(local IPC)"| socket
+        socket <--> core
+    end
+
+    style local fill:#1a1a1a,stroke:#333
+    style desktop fill:#2d2d2d,stroke:#444
+    style agents fill:#2d2d2d,stroke:#444
+    style mcp fill:#2d2d2d,stroke:#444
+```
+
+### How it works
+
+1. **Hotwired Desktop App** runs locally and creates a Unix socket at `~/.hotwired/hotwired.sock`
+2. **AI agents** (Claude Code, Gemini, etc.) run `hotwired-mcp` as their MCP server
+3. **hotwired-mcp** communicates with the desktop app via the local Unix socket
+4. **No external network calls** - all communication stays on your machine
+
+The only external connection the Hotwired Desktop App makes is for **authentication**. All workflow orchestration, message passing, and coordination happens entirely locally.
 
 ## Installation
 
@@ -32,7 +78,17 @@ hotwired-mcp
 cargo install --git https://github.com/hotwired-sh/hotwired-mcp
 ```
 
-## Usage with Claude Code
+## Usage
+
+### With Claude Code
+
+Use the [Hotwired Claude Plugin](https://github.com/hotwired-sh/claude-plugin) which configures this automatically:
+
+```bash
+claude plugin install hotwired
+```
+
+### Manual MCP Configuration
 
 Add to your MCP configuration:
 
@@ -50,30 +106,10 @@ Add to your MCP configuration:
 }
 ```
 
-Or use the [Hotwired Claude Plugin](https://github.com/hotwired-sh/claude-plugin) which configures this automatically.
-
 ## Prerequisites
 
 - [Hotwired Desktop App](https://hotwired.sh) - Must be running
 - [Zellij](https://zellij.dev) - Terminal multiplexer for session management
-
-## How It Works
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  HOTWIRED DESKTOP APP                                           │
-│  └── Listens on ~/.hotwired/hotwired.sock                       │
-└─────────────────────────────────────────────────────────────────┘
-                              ▲
-                              │ Unix Socket (IPC)
-                              │
-┌─────────────────────────────┼───────────────────────────────────┐
-│  hotwired-mcp               │                                   │
-│  ├── Registers session      │                                   │
-│  ├── Provides MCP tools     │                                   │
-│  └── Relays messages        │                                   │
-└─────────────────────────────────────────────────────────────────┘
-```
 
 ## Available Tools
 
@@ -88,40 +124,32 @@ Or use the [Hotwired Claude Plugin](https://github.com/hotwired-sh/claude-plugin
 | `handoff` | Hand work to another agent |
 | `task_complete` | Mark a task as complete |
 
-## Development
-
-### Build
-
-```bash
-cargo build --release
-```
-
-### Test
-
-```bash
-cargo test
-```
-
-### Run locally
-
-```bash
-cargo run
-```
-
 ## Security
 
 This MCP server:
-- Connects only to the local Hotwired socket (`~/.hotwired/hotwired.sock`)
-- Does not make external network requests (except to the Hotwired backend via the socket)
+
+- **Does NOT make any external network requests**
+- Connects only to the local Unix socket (`~/.hotwired/hotwired.sock`)
 - Does not read or modify files outside its scope
 - Source code is fully auditable
+
+## Development
+
+```bash
+# Build
+cargo build --release
+
+# Test
+cargo test
+
+# Run locally
+cargo run
+```
 
 ## License
 
 MIT - See [LICENSE](LICENSE)
 
-## Links
+## Learn More
 
-- [Hotwired](https://hotwired.sh) - Multi-agent workflow orchestration
-- [MCP Specification](https://modelcontextprotocol.io) - Model Context Protocol
-- [Report Issues](https://github.com/hotwired-sh/hotwired-mcp/issues)
+Visit [hotwired.sh](https://hotwired.sh) for documentation, tutorials, and more information about multi-agent workflow orchestration.

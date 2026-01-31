@@ -20,7 +20,7 @@ This MCP server runs on your machine. We open source it so you can:
 ```mermaid
 flowchart TB
     subgraph agents["AI Coding Agents"]
-        claude["Claude Code"] & gemini["Gemini CLI"] & other["Other Agents"]
+        claude["Claude Code"] ~~~ gemini["Gemini CLI"] ~~~ other["Other Agents"]
     end
 
     subgraph mcp["hotwired-mcp"]

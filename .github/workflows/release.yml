@@ -65,10 +65,6 @@ jobs:
             target: aarch64-unknown-linux-gnu
             platform: linux-arm64
             binary: hotwired-mcp
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            platform: win32-x64
-            binary: hotwired-mcp.exe
 
     steps:
       - uses: actions/checkout@v4
@@ -127,7 +123,7 @@ jobs:
 
       - name: Prepare platform packages
         run: |
-          for platform in darwin-arm64 darwin-x64 linux-x64 linux-arm64 win32-x64; do
+          for platform in darwin-arm64 darwin-x64 linux-x64 linux-arm64; do
             mkdir -p npm/$platform/bin
             if [ -d "artifacts/binary-$platform" ]; then
               cp artifacts/binary-$platform/* npm/$platform/bin/
@@ -143,7 +139,7 @@ jobs:
 
       - name: Publish platform packages
         run: |
-          for platform in darwin-arm64 darwin-x64 linux-x64 linux-arm64 win32-x64; do
+          for platform in darwin-arm64 darwin-x64 linux-x64 linux-arm64; do
             cd npm/$platform
             npm publish --access public || true
             cd ../..

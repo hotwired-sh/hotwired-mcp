@@ -9,7 +9,6 @@ const PLATFORMS = {
   "darwin-x64": "@hotwired-sh/mcp-darwin-x64",
   "linux-x64": "@hotwired-sh/mcp-linux-x64",
   "linux-arm64": "@hotwired-sh/mcp-linux-arm64",
-  "win32-x64": "@hotwired-sh/mcp-win32-x64",
 };
 
 const platformKey = `${process.platform}-${process.arch}`;

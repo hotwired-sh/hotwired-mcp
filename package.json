@@ -37,8 +37,7 @@
     "@hotwired-sh/mcp-darwin-arm64": "0.1.0",
     "@hotwired-sh/mcp-darwin-x64": "0.1.0",
     "@hotwired-sh/mcp-linux-x64": "0.1.0",
-    "@hotwired-sh/mcp-linux-arm64": "0.1.0",
-    "@hotwired-sh/mcp-win32-x64": "0.1.0"
+    "@hotwired-sh/mcp-linux-arm64": "0.1.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.0.0",

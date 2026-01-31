@@ -1,0 +1,56 @@
+{
+  "name": "hotwired-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Hotwired multi-agent workflow orchestration",
+  "author": "Hotwired <hello@hotwired.sh>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hotwired-sh/hotwired-mcp.git"
+  },
+  "homepage": "https://hotwired.sh",
+  "bugs": {
+    "url": "https://github.com/hotwired-sh/hotwired-mcp/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "claude",
+    "hotwired",
+    "multi-agent",
+    "workflow"
+  ],
+  "bin": {
+    "hotwired-mcp": "bin/hotwired-mcp"
+  },
+  "files": [
+    "bin",
+    "npm"
+  ],
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js",
+    "test": "cargo test",
+    "prepare": "husky"
+  },
+  "optionalDependencies": {
+    "@hotwired-sh/mcp-darwin-arm64": "0.1.0",
+    "@hotwired-sh/mcp-darwin-x64": "0.1.0",
+    "@hotwired-sh/mcp-linux-x64": "0.1.0",
+    "@hotwired-sh/mcp-linux-arm64": "0.1.0",
+    "@hotwired-sh/mcp-win32-x64": "0.1.0"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/exec": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "conventional-changelog-conventionalcommits": "^7.0.2",
+    "husky": "^9.0.0",
+    "semantic-release": "^24.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

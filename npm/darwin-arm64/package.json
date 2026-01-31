@@ -1,0 +1,13 @@
+{
+  "name": "@hotwired-sh/mcp-darwin-arm64",
+  "version": "0.1.0",
+  "description": "hotwired-mcp binary for macOS ARM64",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hotwired-sh/hotwired-mcp.git"
+  },
+  "os": ["darwin"],
+  "cpu": ["arm64"],
+  "files": ["bin/hotwired-mcp"]
+}

@@ -1,0 +1,72 @@
+#!/usr/bin/env node
+
+const { execFileSync } = require("child_process");
+const path = require("path");
+const fs = require("fs");
+
+const PLATFORMS = {
+  "darwin-arm64": "@hotwired-sh/mcp-darwin-arm64",
+  "darwin-x64": "@hotwired-sh/mcp-darwin-x64",
+  "linux-x64": "@hotwired-sh/mcp-linux-x64",
+  "linux-arm64": "@hotwired-sh/mcp-linux-arm64",
+  "win32-x64": "@hotwired-sh/mcp-win32-x64",
+};
+
+function getBinaryPath() {
+  const platformKey = `${process.platform}-${process.arch}`;
+  const packageName = PLATFORMS[platformKey];
+
+  if (!packageName) {
+    console.error(`Unsupported platform: ${platformKey}`);
+    console.error(`Supported platforms: ${Object.keys(PLATFORMS).join(", ")}`);
+    process.exit(1);
+  }
+
+  // Try to find the binary in node_modules
+  const binaryName = process.platform === "win32" ? "hotwired-mcp.exe" : "hotwired-mcp";
+
+  // Check in the platform package
+  const paths = [
+    // When installed as a dependency
+    path.join(__dirname, "..", "node_modules", packageName, "bin", binaryName),
+    // When installed globally or via npx
+    path.join(__dirname, "..", "node_modules", packageName, "bin", binaryName),
+    // Relative to this package
+    require.resolve(`${packageName}/bin/${binaryName}`),
+  ];
+
+  for (const binPath of paths) {
+    try {
+      if (fs.existsSync(binPath)) {
+        return binPath;
+      }
+    } catch {}
+  }
+
+  // Try require.resolve as last resort
+  try {
+    const pkgPath = require.resolve(`${packageName}/package.json`);
+    const pkgDir = path.dirname(pkgPath);
+    const binPath = path.join(pkgDir, "bin", binaryName);
+    if (fs.existsSync(binPath)) {
+      return binPath;
+    }
+  } catch {}
+
+  console.error(`Could not find binary for platform: ${platformKey}`);
+  console.error(`Expected package: ${packageName}`);
+  process.exit(1);
+}
+
+const binaryPath = getBinaryPath();
+
+try {
+  execFileSync(binaryPath, process.argv.slice(2), {
+    stdio: "inherit",
+  });
+} catch (error) {
+  if (error.status !== null) {
+    process.exit(error.status);
+  }
+  throw error;
+}

@@ -1,0 +1,13 @@
+{
+  "name": "@hotwired-sh/mcp-linux-x64",
+  "version": "0.1.0",
+  "description": "hotwired-mcp binary for Linux x64",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hotwired-sh/hotwired-mcp.git"
+  },
+  "os": ["linux"],
+  "cpu": ["x64"],
+  "files": ["bin/hotwired-mcp"]
+}

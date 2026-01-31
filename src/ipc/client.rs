@@ -1,0 +1,456 @@
+use crate::ipc::traits::IpcClient;
+use crate::types::errors::IpcError;
+use async_trait::async_trait;
+
+/// Production IPC client using HTTP to communicate with Hotwired backend.
+/// This matches the TypeScript MCP's approach for consistency.
+pub struct HttpClient {
+    base_url: String,
+    client: reqwest::Client,
+}
+
+impl HttpClient {
+    /// Create a new HTTP client.
+    /// Default base URL: http://127.0.0.1:2222
+    /// Reads from TAURI_HTTP_API_PORT env var for worktree support.
+    pub fn new(base_url: Option<String>) -> Self {
+        let url = base_url.unwrap_or_else(|| {
+            let port = std::env::var("TAURI_HTTP_API_PORT").unwrap_or_else(|_| "2222".into());
+            format!("http://127.0.0.1:{}", port)
+        });
+        Self {
+            base_url: url,
+            client: reqwest::Client::new(),
+        }
+    }
+
+    /// Make a GET request to an endpoint
+    pub async fn get<Res>(&self, endpoint: &str) -> Result<Res, IpcError>
+    where
+        Res: serde::de::DeserializeOwned,
+    {
+        let url = format!("{}{}", self.base_url, endpoint);
+
+        let response = self
+            .client
+            .get(&url)
+            .header("Content-Type", "application/json")
+            .send()
+            .await
+            .map_err(|e| {
+                if e.is_connect() {
+                    IpcError::NotConnected
+                } else {
+                    IpcError::ConnectionFailed(e.to_string())
+                }
+            })?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(IpcError::RequestFailed(format!(
+                "HTTP {}: {}",
+                status, error_text
+            )));
+        }
+
+        response
+            .json()
+            .await
+            .map_err(|e| IpcError::InvalidResponse(e.to_string()))
+    }
+
+    /// Make a POST request to an endpoint
+    pub async fn post<Req, Res>(&self, endpoint: &str, body: &Req) -> Result<Res, IpcError>
+    where
+        Req: serde::Serialize + Send + Sync,
+        Res: serde::de::DeserializeOwned,
+    {
+        let url = format!("{}{}", self.base_url, endpoint);
+
+        let response = self
+            .client
+            .post(&url)
+            .header("Content-Type", "application/json")
+            .json(body)
+            .send()
+            .await
+            .map_err(|e| {
+                if e.is_connect() {
+                    IpcError::NotConnected
+                } else {
+                    IpcError::ConnectionFailed(e.to_string())
+                }
+            })?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(IpcError::RequestFailed(format!(
+                "HTTP {}: {}",
+                status, error_text
+            )));
+        }
+
+        response
+            .json()
+            .await
+            .map_err(|e| IpcError::InvalidResponse(e.to_string()))
+    }
+}
+
+#[async_trait]
+impl IpcClient for HttpClient {
+    async fn request<Req, Res>(&self, endpoint: &str, request: &Req) -> Result<Res, IpcError>
+    where
+        Req: serde::Serialize + Send + Sync,
+        Res: serde::de::DeserializeOwned,
+    {
+        self.post(endpoint, request).await
+    }
+
+    async fn health_check(&self) -> Result<(), IpcError> {
+        let url = format!("{}/api/health", self.base_url);
+
+        let response = self.client.get(&url).send().await.map_err(|e| {
+            if e.is_connect() {
+                IpcError::NotConnected
+            } else {
+                IpcError::ConnectionFailed(e.to_string())
+            }
+        })?;
+
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            Err(IpcError::RequestFailed(format!(
+                "Health check failed: {}",
+                response.status()
+            )))
+        }
+    }
+}
+
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::net::UnixStream;
+use tokio::sync::Mutex;
+
+/// Unix socket client for communicating with Hotwired backend.
+/// This is the primary IPC mechanism, communicating with hotwired-core's SocketServer.
+pub struct UnixSocketClient {
+    socket_path: String,
+    /// Cached connection (lazy-initialized)
+    stream: Mutex<Option<UnixStream>>,
+    /// Auth token for request validation (read from ~/.hotwired/auth_token)
+    auth_token: Option<String>,
+}
+
+/// Request format for socket protocol (matches hotwired-core/src/socket/mod.rs)
+#[derive(Debug, serde::Serialize)]
+struct SocketRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    id: Option<String>,
+    method: String,
+    params: serde_json::Value,
+    /// Auth token for request validation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    token: Option<String>,
+}
+
+/// Response format from socket server
+#[derive(Debug, serde::Deserialize)]
+struct SocketResponse {
+    #[serde(default)]
+    id: Option<String>,
+    success: bool,
+    #[serde(default)]
+    data: Option<serde_json::Value>,
+    #[serde(default)]
+    error: Option<String>,
+}
+
+impl UnixSocketClient {
+    /// Create a new Unix socket client.
+    /// Default socket path: ~/.hotwired/hotwired.sock
+    /// NOTE: We intentionally do NOT read HOTWIRED_SOCKET_PATH env var here.
+    /// Socket path override should only come from CLI argument to prevent
+    /// worktree environments from accidentally connecting to wrong backend.
+    pub fn new(socket_path: Option<String>) -> Self {
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
+        let hotwired_dir = format!("{}/.hotwired", home);
+
+        let path = socket_path.unwrap_or_else(|| format!("{}/hotwired.sock", hotwired_dir));
+
+        // Read auth token from file (generated by Tauri app on startup)
+        let token_path = format!("{}/auth_token", hotwired_dir);
+        let auth_token = std::fs::read_to_string(&token_path).ok();
+
+        Self {
+            socket_path: path,
+            stream: Mutex::new(None),
+            auth_token,
+        }
+    }
+
+    /// Register a Claude session with the Hotwired backend.
+    /// Called by the SessionStart hook from the Claude Code plugin.
+    pub async fn register_session(
+        &self,
+        session_name: &str,
+        project_dir: &str,
+    ) -> Result<bool, IpcError> {
+        let request = serde_json::json!({
+            "sessionName": session_name,
+            "projectDir": project_dir,
+        });
+        let response: crate::ipc::messages::RegisterSessionResponse =
+            self.send_request("register_session", &request).await?;
+        Ok(response.success)
+    }
+
+    /// Deregister a Claude session from the Hotwired backend.
+    /// Called by the SessionEnd hook from the Claude Code plugin.
+    pub async fn deregister_session(&self, session_name: &str) -> Result<bool, IpcError> {
+        let request = serde_json::json!({
+            "sessionName": session_name,
+        });
+        let response: crate::ipc::messages::DeregisterSessionResponse =
+            self.send_request("deregister_session", &request).await?;
+        Ok(response.success)
+    }
+
+    /// Get or create a connection to the socket
+    async fn get_connection(&self) -> Result<UnixStream, IpcError> {
+        // Try to connect fresh each time for reliability
+        // (socket connections can go stale)
+        UnixStream::connect(&self.socket_path).await.map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound
+                || e.kind() == std::io::ErrorKind::ConnectionRefused
+            {
+                IpcError::NotConnected
+            } else {
+                IpcError::ConnectionFailed(format!(
+                    "Failed to connect to socket at {}: {}",
+                    self.socket_path, e
+                ))
+            }
+        })
+    }
+
+    /// Send a request to the socket server and receive a response
+    async fn send_request<Req, Res>(&self, method: &str, params: &Req) -> Result<Res, IpcError>
+    where
+        Req: serde::Serialize + Send + Sync,
+        Res: serde::de::DeserializeOwned,
+    {
+        let mut stream = self.get_connection().await?;
+
+        // Build the request
+        let request = SocketRequest {
+            id: None, // We don't need request IDs for simple request/response
+            method: method.to_string(),
+            params: serde_json::to_value(params).map_err(|e| {
+                IpcError::InvalidResponse(format!("Failed to serialize params: {}", e))
+            })?,
+            token: self.auth_token.clone(),
+        };
+
+        let request_json = serde_json::to_string(&request).map_err(|e| {
+            IpcError::InvalidResponse(format!("Failed to serialize request: {}", e))
+        })?;
+
+        // Send request (line-delimited JSON)
+        stream
+            .write_all(request_json.as_bytes())
+            .await
+            .map_err(|e| IpcError::ConnectionFailed(format!("Failed to write request: {}", e)))?;
+        stream
+            .write_all(b"\n")
+            .await
+            .map_err(|e| IpcError::ConnectionFailed(format!("Failed to write newline: {}", e)))?;
+        stream
+            .flush()
+            .await
+            .map_err(|e| IpcError::ConnectionFailed(format!("Failed to flush: {}", e)))?;
+
+        // Read response
+        let mut reader = BufReader::new(&mut stream);
+        let mut response_line = String::new();
+        reader
+            .read_line(&mut response_line)
+            .await
+            .map_err(|e| IpcError::ConnectionFailed(format!("Failed to read response: {}", e)))?;
+
+        // Parse response
+        let response: SocketResponse = serde_json::from_str(&response_line)
+            .map_err(|e| IpcError::InvalidResponse(format!("Failed to parse response: {}", e)))?;
+
+        if !response.success {
+            return Err(IpcError::RequestFailed(
+                response
+                    .error
+                    .unwrap_or_else(|| "Unknown error".to_string()),
+            ));
+        }
+
+        // Extract and deserialize data
+        let data = response
+            .data
+            .ok_or_else(|| IpcError::InvalidResponse("Response missing data field".to_string()))?;
+
+        serde_json::from_value(data).map_err(|e| {
+            IpcError::InvalidResponse(format!("Failed to deserialize response data: {}", e))
+        })
+    }
+}
+
+#[async_trait]
+impl IpcClient for UnixSocketClient {
+    async fn request<Req, Res>(&self, endpoint: &str, request: &Req) -> Result<Res, IpcError>
+    where
+        Req: serde::Serialize + Send + Sync,
+        Res: serde::de::DeserializeOwned,
+    {
+        // The endpoint is the method name (e.g., "/api/runs/protocol" -> "get_protocol")
+        // We need to map HTTP-style endpoints to socket method names
+        let method = endpoint_to_method(endpoint);
+        self.send_request(&method, request).await
+    }
+
+    async fn health_check(&self) -> Result<(), IpcError> {
+        let _: serde_json::Value = self.send_request("ping", &serde_json::json!({})).await?;
+        Ok(())
+    }
+}
+
+/// Map HTTP-style endpoints to socket method names.
+/// The tools use endpoints like "/api/protocol", "/api/status", etc.
+/// The socket server expects method names like "get_protocol", "report_status", etc.
+fn endpoint_to_method(endpoint: &str) -> String {
+    // Remove leading /api/ prefix if present
+    let path = endpoint.trim_start_matches("/api/");
+
+    // Handle dynamic run ID patterns like "runs/{run_id}/protocol"
+    // These patterns have 3+ segments: runs / {run_id} / {action} [/ {sub_action}]
+    let segments: Vec<&str> = path.split('/').collect();
+
+    // Handle artifact comment resolution: runs/{run_id}/artifacts/{artifact_id}/comments/{comment_id}/resolve
+    if segments.len() == 7
+        && segments[0] == "runs"
+        && segments[2] == "artifacts"
+        && segments[4] == "comments"
+        && segments[6] == "resolve"
+    {
+        return "doc_artifact_resolve_comment".to_string();
+    }
+
+    // Handle suggestion accept/reject: runs/{run_id}/artifacts/{artifact_id}/suggestions/{suggestion_id}/{action}
+    if segments.len() == 7
+        && segments[0] == "runs"
+        && segments[2] == "artifacts"
+        && segments[4] == "suggestions"
+    {
+        return match segments[6] {
+            "accept" => "doc_artifact_accept_suggestion".to_string(),
+            "reject" => "doc_artifact_reject_suggestion".to_string(),
+            _ => format!("doc_artifact_suggestions_{}", segments[6]),
+        };
+    }
+
+    // Handle artifact comment add/list: runs/{run_id}/artifacts/{artifact_id}/comments/{action}
+    // e.g., runs/{run_id}/artifacts/{artifact_id}/comments/add
+    // e.g., runs/{run_id}/artifacts/{artifact_id}/comments/list
+    if segments.len() == 6
+        && segments[0] == "runs"
+        && segments[2] == "artifacts"
+        && segments[4] == "comments"
+    {
+        return match segments[5] {
+            "add" => "doc_artifact_add_comment".to_string(),
+            "list" => "doc_artifact_list_comments".to_string(),
+            _ => format!("doc_artifact_comments_{}", segments[5]),
+        };
+    }
+
+    // Handle artifact suggestions list: runs/{run_id}/artifacts/{artifact_id}/suggestions/list
+    if segments.len() == 6
+        && segments[0] == "runs"
+        && segments[2] == "artifacts"
+        && segments[4] == "suggestions"
+        && segments[5] == "list"
+    {
+        return "doc_artifact_list_suggestions".to_string();
+    }
+
+    // Handle artifact sub-actions: runs/{run_id}/artifacts/{artifact_id}/{action}
+    // e.g., runs/{run_id}/artifacts/{artifact_id}/edit
+    // e.g., runs/{run_id}/artifacts/{artifact_id}/search
+    // e.g., runs/{run_id}/artifacts/{artifact_id}/suggestions (create)
+    if segments.len() == 5 && segments[0] == "runs" && segments[2] == "artifacts" {
+        return match segments[4] {
+            "edit" => "doc_artifact_edit".to_string(),
+            "search" => "doc_artifact_search".to_string(),
+            "suggestions" => "doc_artifact_suggest_edit".to_string(),
+            _ => format!("doc_artifact_{}", segments[4]),
+        };
+    }
+
+    // Handle artifact read: runs/{run_id}/artifacts/{artifact_id}
+    if segments.len() == 4 && segments[0] == "runs" && segments[2] == "artifacts" {
+        return "doc_artifact_read".to_string();
+    }
+
+    // Handle artifact list: runs/{run_id}/artifacts
+    if segments.len() == 3 && segments[0] == "runs" && segments[2] == "artifacts" {
+        return "doc_artifact_list".to_string();
+    }
+
+    // Handle artifact create: artifacts (no run_id prefix)
+    if segments.len() == 1 && segments[0] == "artifacts" {
+        return "doc_artifact_create".to_string();
+    }
+
+    // Handle 4-segment patterns first: runs/{run_id}/{action}/{sub_action}
+    if segments.len() == 4 && segments[0] == "runs" {
+        return match (segments[2], segments[3]) {
+            ("impediment", "resolve") => "resolve_impediment".to_string(),
+            ("end", "respond") => "respond_input".to_string(),
+            _ => format!("runs_{}_{}", segments[2], segments[3]),
+        };
+    }
+
+    // Handle 3-segment patterns: runs/{run_id}/{action}
+    if segments.len() == 3 && segments[0] == "runs" {
+        return match segments[2] {
+            "protocol" => "get_protocol".to_string(),
+            "status" => "get_run_status".to_string(),
+            "message" => "send_message".to_string(),
+            "report-status" => "report_status".to_string(),
+            "task-complete" => "task_complete".to_string(),
+            "impediment" => "report_impediment".to_string(),
+            "handoff" => "handoff".to_string(),
+            "input" => "request_input".to_string(),
+            "end" => "request_end_run".to_string(),
+            other => format!("runs_{}", other),
+        };
+    }
+
+    // Map simple endpoints (no run ID)
+    match path {
+        "health" | "ping" => "ping".to_string(),
+        "protocol" => "get_protocol".to_string(),
+        "run-status" => "get_run_status".to_string(),
+        "status" => "report_status".to_string(),
+        "message" => "send_message".to_string(),
+        "task-complete" => "task_complete".to_string(),
+        "impediment" => "report_impediment".to_string(),
+        "handoff" => "handoff".to_string(),
+        "input" => "request_input".to_string(),
+        "request-end" => "request_end_run".to_string(),
+        "respond-end" => "respond_input".to_string(),
+        "runs" => "list_runs".to_string(),
+        "events" => "create_event".to_string(),
+        "events/conversation" => "get_conversation_events".to_string(),
+        _ => path.replace(['-', '/'], "_"),
+    }
+}

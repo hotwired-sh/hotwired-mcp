@@ -20,19 +20,14 @@ This MCP server runs on your machine. We open source it so you can:
 ```mermaid
 flowchart TB
     subgraph agents["AI Coding Agents"]
-        direction LR
-        claude["Claude Code"]
-        gemini["Gemini CLI"]
-        other["Other Agents"]
+        claude["Claude Code"] & gemini["Gemini CLI"] & other["Other Agents"]
     end
 
     subgraph mcp["hotwired-mcp"]
-        direction LR
         tools["MCP Tools"] --> ipc["IPC Client"]
     end
 
     subgraph desktop["Hotwired Desktop App"]
-        direction LR
         socket["Unix Socket<br/>~/.hotwired/hotwired.sock"] <--> core["Hotwired Core"]
     end
 

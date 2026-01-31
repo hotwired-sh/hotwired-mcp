@@ -1,13 +1,19 @@
 {
   "name": "@hotwired-sh/mcp-darwin-x64",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "hotwired-mcp binary for macOS x64",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hotwired-sh/hotwired-mcp.git"
   },
-  "os": ["darwin"],
-  "cpu": ["x64"],
-  "files": ["bin/hotwired-mcp"]
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin/hotwired-mcp"
+  ]
 }

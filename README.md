@@ -1,5 +1,7 @@
 # hotwired-mcp
 
+![Hotwired](hotwired-sh.png)
+
 MCP (Model Context Protocol) server for [Hotwired](https://hotwired.sh) multi-agent workflow orchestration.
 
 ## Why Open Source?
@@ -11,41 +13,31 @@ This MCP server runs on your machine. We open source it so you can:
 - **Trust** that there's no hidden behavior
 - **Build from source** if you prefer
 
-## Architecture
+## Hotwired.sh Architecture
 
 **Everything runs locally on your machine.** There are no external service dependencies.
 
 ```mermaid
 flowchart TB
-    subgraph local["YOUR MACHINE"]
-        subgraph desktop["Hotwired Desktop App"]
-            core["Workflow Engine"]
-            socket["Unix Socket Server<br/>~/.hotwired/hotwired.sock"]
-        end
-
-        subgraph agents["AI Coding Agents"]
-            claude["Claude Code"]
-            gemini["Google Gemini"]
-            other["Other MCP-compatible agents"]
-        end
-
-        subgraph mcp["hotwired-mcp (this repo)"]
-            tools["MCP Tools"]
-            ipc["IPC Client"]
-        end
-
-        claude -->|"runs"| mcp
-        gemini -->|"runs"| mcp
-        other -->|"runs"| mcp
-
-        ipc <-->|"Unix Socket<br/>(local IPC)"| socket
-        socket <--> core
+    subgraph agents["AI Coding Agents"]
+        direction LR
+        claude["Claude Code"]
+        gemini["Gemini CLI"]
+        other["Other Agents"]
     end
 
-    style local fill:#1a1a1a,stroke:#333
-    style desktop fill:#2d2d2d,stroke:#444
-    style agents fill:#2d2d2d,stroke:#444
-    style mcp fill:#2d2d2d,stroke:#444
+    subgraph mcp["hotwired-mcp"]
+        direction LR
+        tools["MCP Tools"] --> ipc["IPC Client"]
+    end
+
+    subgraph desktop["Hotwired Desktop App"]
+        direction LR
+        socket["Unix Socket<br/>~/.hotwired/hotwired.sock"] <--> core["Hotwired Core"]
+    end
+
+    agents -->|"spawns"| mcp
+    ipc <-->|"local only"| socket
 ```
 
 ### How it works

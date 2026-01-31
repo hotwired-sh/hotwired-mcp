@@ -97,10 +97,7 @@ Add to your MCP configuration:
   "mcpServers": {
     "hotwired": {
       "command": "npx",
-      "args": ["hotwired-mcp"],
-      "env": {
-        "ZELLIJ_SESSION_NAME": "${ZELLIJ_SESSION_NAME}"
-      }
+      "args": ["hotwired-mcp"]
     }
   }
 }

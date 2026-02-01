@@ -48,13 +48,24 @@ The only external connection the Hotwired Desktop App makes is for **authenticat
 
 ### For Claude Code Users
 
-Add the MCP server to Claude Code:
+Hotwired requires both the MCP server and the Claude Plugin for full functionality.
+
+**Step 1: Add the MCP server**
 
 ```bash
 claude mcp add hotwired -- npx @hotwired-sh/hotwired-mcp@latest
 ```
 
-For the full plugin experience (session hooks, slash commands), also install the [Hotwired Claude Plugin](https://github.com/hotwired-sh/claude-plugin).
+**Step 2: Install the Claude Plugin**
+
+The plugin provides session hooks and slash commands that integrate Claude Code with Hotwired workflows:
+
+```bash
+claude plugin marketplace add hotwired-sh/claude-plugin
+claude plugin install hotwired@hotwired-sh/claude-plugin
+```
+
+See the [Hotwired Claude Plugin](https://github.com/hotwired-sh/claude-plugin) for more details.
 
 ### For Other MCP-Compatible Agents
 

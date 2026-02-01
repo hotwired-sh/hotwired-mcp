@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/hotwired-sh/hotwired-mcp/compare/v1.0.1...v1.0.2) (2026-02-01)
+
+
+### Bug Fixes
+
+* correct Claude Code installation instructions ([8fcb9fd](https://github.com/hotwired-sh/hotwired-mcp/commit/8fcb9fd1341ae2571a2d42847c957d3822f1e59d))
+
 ## [1.0.1](https://github.com/hotwired-sh/hotwired-mcp/compare/v1.0.0...v1.0.1) (2026-01-31)
 
 

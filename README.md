@@ -1,6 +1,6 @@
 # hotwired-mcp
 
-![Hotwired](hotwired-sh.png)
+[![Hotwired](hotwired-sh.png)](https://hotwired.sh)
 
 MCP (Model Context Protocol) server for [Hotwired](https://hotwired.sh) multi-agent workflow orchestration.
 
@@ -48,13 +48,13 @@ The only external connection the Hotwired Desktop App makes is for **authenticat
 
 ### For Claude Code Users
 
-**Just install the [Hotwired Claude Plugin](https://github.com/hotwired-sh/claude-plugin)** - it handles everything automatically:
+Add the MCP server to Claude Code:
 
 ```bash
-claude plugin install hotwired
+claude mcp add hotwired -- npx @hotwired-sh/hotwired-mcp@latest
 ```
 
-The plugin runs `npx @hotwired-sh/hotwired-mcp@latest` under the hood, so you'll always have the latest version. No manual installation needed.
+For the full plugin experience (session hooks, slash commands), also install the [Hotwired Claude Plugin](https://github.com/hotwired-sh/claude-plugin).
 
 ### For Other MCP-Compatible Agents
 

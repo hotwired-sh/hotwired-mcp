@@ -45,4 +45,13 @@ if (fs.existsSync(cargoPath)) {
   console.log(`Updated ${cargoPath}`);
 }
 
+// Update package-lock.json to reflect new optionalDependencies versions
+const { execSync } = require('child_process');
+console.log('Updating package-lock.json...');
+execSync('npm install --package-lock-only --ignore-scripts', {
+  cwd: path.join(__dirname, '..'),
+  stdio: 'inherit'
+});
+console.log('Updated package-lock.json');
+
 console.log('Version update complete');

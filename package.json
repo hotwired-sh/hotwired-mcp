@@ -1,6 +1,6 @@
 {
   "name": "@hotwired-sh/hotwired-mcp",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "MCP server for Hotwired multi-agent workflow orchestration",
   "author": "Hotwired <hello@hotwired.sh>",
   "license": "MIT",
@@ -34,10 +34,10 @@
     "prepare": "husky"
   },
   "optionalDependencies": {
-    "@hotwired-sh/mcp-darwin-arm64": "1.0.2",
-    "@hotwired-sh/mcp-darwin-x64": "1.0.2",
-    "@hotwired-sh/mcp-linux-x64": "1.0.2",
-    "@hotwired-sh/mcp-linux-arm64": "1.0.2"
+    "@hotwired-sh/mcp-darwin-arm64": "1.0.3",
+    "@hotwired-sh/mcp-darwin-x64": "1.0.3",
+    "@hotwired-sh/mcp-linux-x64": "1.0.3",
+    "@hotwired-sh/mcp-linux-arm64": "1.0.3"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.0.0",

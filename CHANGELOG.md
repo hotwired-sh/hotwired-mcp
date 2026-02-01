@@ -1,3 +1,11 @@
+## [1.0.3](https://github.com/hotwired-sh/hotwired-mcp/compare/v1.0.2...v1.0.3) (2026-02-01)
+
+
+### Bug Fixes
+
+* directly edit package-lock.json instead of using npm install ([735cb5d](https://github.com/hotwired-sh/hotwired-mcp/commit/735cb5d12a6db96f28dc081b389729ead2c647e6))
+* sync package-lock.json during release version updates ([dfcc208](https://github.com/hotwired-sh/hotwired-mcp/commit/dfcc2088d9773fc633e4fa8fec3cf0b86ab6232a))
+
 ## [1.0.2](https://github.com/hotwired-sh/hotwired-mcp/compare/v1.0.1...v1.0.2) (2026-02-01)
 
 

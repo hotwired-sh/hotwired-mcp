@@ -1,6 +1,6 @@
 {
   "name": "@hotwired-sh/mcp-linux-arm64",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "hotwired-mcp binary for Linux ARM64",
   "license": "MIT",
   "repository": {

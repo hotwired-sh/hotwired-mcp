@@ -45,13 +45,39 @@ if (fs.existsSync(cargoPath)) {
   console.log(`Updated ${cargoPath}`);
 }
 
-// Update package-lock.json to reflect new optionalDependencies versions
-const { execSync } = require('child_process');
-console.log('Updating package-lock.json...');
-execSync('npm install --package-lock-only --ignore-scripts', {
-  cwd: path.join(__dirname, '..'),
-  stdio: 'inherit'
-});
-console.log('Updated package-lock.json');
+// Update package-lock.json directly (can't use npm install because new packages don't exist on npm yet)
+const lockPath = path.join(__dirname, '..', 'package-lock.json');
+if (fs.existsSync(lockPath)) {
+  let lockContent = fs.readFileSync(lockPath, 'utf8');
+  const lockJson = JSON.parse(lockContent);
+
+  // Update the root version
+  lockJson.version = version;
+
+  // Update optionalDependencies in packages[""] (root)
+  if (lockJson.packages && lockJson.packages['']) {
+    const root = lockJson.packages[''];
+    for (const dep of Object.keys(root.optionalDependencies || {})) {
+      root.optionalDependencies[dep] = version;
+    }
+  }
+
+  // Update each platform package entry in packages
+  const platformPkgs = [
+    '@hotwired-sh/mcp-darwin-arm64',
+    '@hotwired-sh/mcp-darwin-x64',
+    '@hotwired-sh/mcp-linux-x64',
+    '@hotwired-sh/mcp-linux-arm64'
+  ];
+  for (const pkg of platformPkgs) {
+    const key = `node_modules/${pkg}`;
+    if (lockJson.packages && lockJson.packages[key]) {
+      lockJson.packages[key].version = version;
+    }
+  }
+
+  fs.writeFileSync(lockPath, JSON.stringify(lockJson, null, 2) + '\n');
+  console.log(`Updated ${lockPath}`);
+}
 
 console.log('Version update complete');

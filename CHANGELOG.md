@@ -1,3 +1,10 @@
+## [1.0.4](https://github.com/hotwired-sh/hotwired-mcp/compare/v1.0.3...v1.0.4) (2026-02-02)
+
+
+### Bug Fixes
+
+* check bundled npm/ folder for binaries first ([a1b34e9](https://github.com/hotwired-sh/hotwired-mcp/commit/a1b34e9806f967ae726dea0ecbe7af62ee0c65ef))
+
 ## [1.0.3](https://github.com/hotwired-sh/hotwired-mcp/compare/v1.0.2...v1.0.3) (2026-02-01)
 
 

@@ -1,3 +1,10 @@
+## [1.0.5](https://github.com/hotwired-sh/hotwired-mcp/compare/v1.0.4...v1.0.5) (2026-02-02)
+
+
+### Bug Fixes
+
+* remove postinstall script that was not included in npm package ([ee3aed1](https://github.com/hotwired-sh/hotwired-mcp/commit/ee3aed15a9ac919cb9a4a20c9284bf4a3c6fdbff))
+
 ## [1.0.4](https://github.com/hotwired-sh/hotwired-mcp/compare/v1.0.3...v1.0.4) (2026-02-02)
 
 

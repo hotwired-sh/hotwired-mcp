@@ -29,7 +29,6 @@
     "npm"
   ],
   "scripts": {
-    "postinstall": "node scripts/postinstall.js",
     "test": "cargo test",
     "prepare": "husky"
   },

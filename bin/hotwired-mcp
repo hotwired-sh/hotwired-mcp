@@ -22,17 +22,14 @@ function getBinaryPath() {
     process.exit(1);
   }
 
-  // Try to find the binary in node_modules
   const binaryName = process.platform === "win32" ? "hotwired-mcp.exe" : "hotwired-mcp";
 
-  // Check in the platform package
+  // Paths to check, in order of priority
   const paths = [
-    // When installed as a dependency
+    // Bundled in npm/ folder (primary - works with npx)
+    path.join(__dirname, "..", "npm", platformKey, "bin", binaryName),
+    // Optional dependency in node_modules
     path.join(__dirname, "..", "node_modules", packageName, "bin", binaryName),
-    // When installed globally or via npx
-    path.join(__dirname, "..", "node_modules", packageName, "bin", binaryName),
-    // Relative to this package
-    require.resolve(`${packageName}/bin/${binaryName}`),
   ];
 
   for (const binPath of paths) {
@@ -54,7 +51,8 @@ function getBinaryPath() {
   } catch {}
 
   console.error(`Could not find binary for platform: ${platformKey}`);
-  console.error(`Expected package: ${packageName}`);
+  console.error(`Checked paths:`);
+  paths.forEach(p => console.error(`  - ${p}`));
   process.exit(1);
 }
 

@@ -922,3 +922,222 @@ pub struct DocArtifactListSuggestionsResponse {
     pub artifact_id: String,
     pub suggestions: Vec<SuggestionDetail>,
 }
+
+// =============================================================================
+// TERMINAL WORKFLOW TOOLS (/hotwire, /pair)
+// =============================================================================
+
+// ===== HOTWIRE - Initiate run from terminal =====
+
+/// Artifact suggestion for hotwire command
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct HotwireArtifact {
+    pub path: String,
+    /// Action: "create" or "use_existing"
+    pub action: String,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct HotwireRequest {
+    /// The project directory path
+    pub project_path: String,
+    /// The Zellij session name
+    pub zellij_session: String,
+    /// User's intent/description of what they want to do
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub intent: Option<String>,
+    /// Suggested playbook ID if agent determined one
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub suggested_playbook: Option<String>,
+    /// Suggested artifacts to create or use
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub suggested_artifacts: Option<Vec<HotwireArtifact>>,
+}
+
+/// Response when run starts immediately
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct HotwireStarted {
+    pub run_id: String,
+    pub role: String,
+    pub playbook: String,
+    pub protocol: String,
+}
+
+/// Response when user must confirm in app
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct HotwireNeedsConfirmation {
+    pub pending_run_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub suggested_playbook: Option<String>,
+    pub message: String,
+}
+
+/// Hotwire response - tagged enum for easy parsing
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum HotwireResponse {
+    Started(HotwireStarted),
+    NeedsConfirmation(HotwireNeedsConfirmation),
+    Error { error: String },
+}
+
+// ===== PAIR - Join run as second agent =====
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct PairRequest {
+    /// The Zellij session name
+    pub zellij_session: String,
+    /// The project directory path
+    pub project_path: String,
+}
+
+/// Context about the primary agent's state when joining
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PairingContext {
+    pub primary_status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub current_artifact: Option<String>,
+    pub conversation_summary: String,
+}
+
+/// Response when successfully joined a run
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PairJoined {
+    pub run_id: String,
+    pub role: String,
+    pub role_name: String,
+    pub playbook: String,
+    pub protocol: String,
+    pub context: PairingContext,
+}
+
+/// A run waiting for a second agent
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PendingPairRun {
+    pub run_id: String,
+    pub playbook: String,
+    pub intent: String,
+    pub role_needed: String,
+}
+
+/// Response when multiple runs need selection
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PairNeedsSelection {
+    pub pending_runs: Vec<PendingPairRun>,
+    pub message: String,
+}
+
+/// Response when project path doesn't match
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PairProjectMismatch {
+    pub required_path: String,
+    pub current_path: String,
+    pub message: String,
+}
+
+/// Pair response - tagged enum for easy parsing
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum PairResponse {
+    Joined(PairJoined),
+    NeedsSelection(PairNeedsSelection),
+    #[serde(rename = "none")]
+    NoneAvailable { message: String },
+    ProjectMismatch(PairProjectMismatch),
+    Error { error: String },
+}
+
+// ===== LIST ACTIVE RUNS =====
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ListActiveRunsRequest {
+    /// Filter by project path
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_path: Option<String>,
+    /// Filter by Zellij session
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub zellij_session: Option<String>,
+}
+
+/// An active or resumable run
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ActiveRun {
+    pub run_id: String,
+    pub playbook: String,
+    pub intent: String,
+    pub status: String,
+    /// If this session was attached, the role it had
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub my_role: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ListActiveRunsResponse {
+    pub runs: Vec<ActiveRun>,
+}
+
+// ===== LIST PLAYBOOKS =====
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ListPlaybooksRequest {}
+
+/// Role information within a playbook
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PlaybookRoleInfo {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    /// True if this role initiates the workflow (used by /hotwire)
+    pub is_initiating: bool,
+}
+
+/// Hints for how to initialize a playbook
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PlaybookInitHints {
+    /// Whether this playbook expects a document path
+    pub expects_document: bool,
+    /// Whether this playbook expects a goal/objective
+    pub expects_goal: bool,
+    /// Suggested directory paths for artifacts
+    pub suggested_paths: Vec<String>,
+}
+
+/// Playbook metadata for intent matching
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PlaybookInfo {
+    pub id: String,
+    pub name: String,
+    pub tagline: String,
+    pub description: String,
+    pub artifact_mode: bool,
+    pub roles: Vec<PlaybookRoleInfo>,
+    /// What this playbook is best for
+    pub best_for: Vec<String>,
+    /// Keywords for intent matching
+    pub keywords: Vec<String>,
+    pub initialization: PlaybookInitHints,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ListPlaybooksResponse {
+    pub playbooks: Vec<PlaybookInfo>,
+}

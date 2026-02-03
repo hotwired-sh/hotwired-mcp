@@ -319,6 +319,11 @@ fn endpoint_to_method(endpoint: &str) -> String {
         "runs" => "list_runs".to_string(),
         "events" => "create_event".to_string(),
         "events/conversation" => "get_conversation_events".to_string(),
+        // Terminal workflow tools
+        "hotwire" => "hotwire".to_string(),
+        "pair" => "pair".to_string(),
+        "active-runs" => "list_active_runs".to_string(),
+        "playbooks" => "list_playbooks".to_string(),
         _ => path.replace(['-', '/'], "_"),
     }
 }

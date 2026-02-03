@@ -15,6 +15,11 @@ use crate::ipc::messages::{
     GetProtocolRequest,
     GetRunStatusRequest,
     HandoffRequest,
+    // Terminal workflow tools
+    HotwireRequest,
+    ListActiveRunsRequest,
+    ListPlaybooksRequest,
+    PairRequest,
     ReportImpedimentRequest,
     ReportStatusRequest,
     RequestEndRunRequest,
@@ -25,7 +30,7 @@ use crate::ipc::messages::{
     TaskCompleteRequest,
 };
 use crate::ipc::traits::IpcClient;
-use crate::tools::{artifacts, protocol, status};
+use crate::tools::{artifacts, protocol, status, terminal};
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
     model::*,
@@ -347,6 +352,114 @@ impl<C: IpcClient + 'static> HotwiredMcp<C> {
             }
             Err(e) => Ok(CallToolResult::success(vec![Content::text(format!(
                 "Failed to respond to end request: {}",
+                e
+            ))])),
+        }
+    }
+
+    // =========================================================================
+    // TERMINAL WORKFLOW TOOLS (/hotwire, /pair)
+    // =========================================================================
+
+    #[tool(
+        description = "Initiate a new Hotwired workflow run from the terminal. \
+        Called by /hotwire command. Provide project path, Zellij session, and optional intent. \
+        Returns either: 'started' with your protocol (begin working immediately), \
+        or 'needs_confirmation' (wait for user to confirm in app, then call get_protocol)."
+    )]
+    async fn hotwire(
+        &self,
+        Parameters(params): Parameters<HotwireRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        match terminal::hotwire(
+            &*self.client,
+            &params.project_path,
+            &params.zellij_session,
+            params.intent.as_deref(),
+            params.suggested_playbook.as_deref(),
+            params.suggested_artifacts,
+        )
+        .await
+        {
+            Ok(response) => {
+                let formatted = terminal::format_hotwire_response(&response);
+                Ok(CallToolResult::success(vec![Content::text(formatted)]))
+            }
+            Err(e) => Ok(CallToolResult::success(vec![Content::text(format!(
+                "Failed to initiate workflow: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(
+        description = "Join an existing workflow run as a second agent. \
+        Called by /pair command. Automatically finds runs that need a second agent. \
+        Returns: 'joined' with your protocol and context, \
+        'needs_selection' (multiple runs available, select in app), \
+        'none' (no runs need pairing), or 'project_mismatch' (wrong directory)."
+    )]
+    async fn pair(
+        &self,
+        Parameters(params): Parameters<PairRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        match terminal::pair(&*self.client, &params.zellij_session, &params.project_path).await {
+            Ok(response) => {
+                let formatted = terminal::format_pair_response(&response);
+                Ok(CallToolResult::success(vec![Content::text(formatted)]))
+            }
+            Err(e) => Ok(CallToolResult::success(vec![Content::text(format!(
+                "Failed to join workflow: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(
+        description = "List active or resumable workflow runs. \
+        Use this before /hotwire to check if there are existing runs to continue. \
+        If my_role is set for a run, you were previously attached to it. \
+        Optionally filter by project path or Zellij session."
+    )]
+    async fn list_active_runs(
+        &self,
+        Parameters(params): Parameters<ListActiveRunsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        match terminal::list_active_runs(
+            &*self.client,
+            params.project_path.as_deref(),
+            params.zellij_session.as_deref(),
+        )
+        .await
+        {
+            Ok(response) => {
+                let formatted = terminal::format_active_runs(&response);
+                Ok(CallToolResult::success(vec![Content::text(formatted)]))
+            }
+            Err(e) => Ok(CallToolResult::success(vec![Content::text(format!(
+                "Failed to list active runs: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(
+        description = "List available playbooks with metadata for intent matching. \
+        Returns playbook information including roles, keywords, and initialization hints. \
+        Use this to match user intent to the appropriate playbook before calling hotwire. \
+        The role with is_initiating=true is the one you'll take when using /hotwire."
+    )]
+    async fn list_playbooks(
+        &self,
+        Parameters(_params): Parameters<ListPlaybooksRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        match terminal::list_playbooks(&*self.client).await {
+            Ok(response) => {
+                let formatted = terminal::format_playbooks(&response);
+                Ok(CallToolResult::success(vec![Content::text(formatted)]))
+            }
+            Err(e) => Ok(CallToolResult::success(vec![Content::text(format!(
+                "Failed to list playbooks: {}",
                 e
             ))])),
         }

@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/hotwired-sh/hotwired-mcp/compare/v1.1.0...v1.1.1) (2026-02-04)
+
+
+### Bug Fixes
+
+* apply cargo fmt to fix CI formatting check ([c68eb88](https://github.com/hotwired-sh/hotwired-mcp/commit/c68eb8854257b73c39fd3e65da631b63c4495063))
+
 # [1.1.0](https://github.com/hotwired-sh/hotwired-mcp/compare/v1.0.5...v1.1.0) (2026-02-04)
 
 

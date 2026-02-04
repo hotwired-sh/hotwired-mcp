@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/hotwired-sh/hotwired-mcp/compare/v1.0.5...v1.1.0) (2026-02-04)
+
+
+### Features
+
+* add terminal workflow MCP tools (hotwire, pair, list_active_runs, list_playbooks) ([b68719c](https://github.com/hotwired-sh/hotwired-mcp/commit/b68719cffb15e51b750871641e5df7ee3657d166))
+
 ## [1.0.5](https://github.com/hotwired-sh/hotwired-mcp/compare/v1.0.4...v1.0.5) (2026-02-02)
 
 

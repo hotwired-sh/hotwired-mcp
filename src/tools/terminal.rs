@@ -5,8 +5,8 @@
 
 use crate::ipc::messages::{
     HotwireArtifact, HotwireRequest, HotwireResponse, ListActiveRunsRequest,
-    ListActiveRunsResponse, ListPlaybooksRequest, ListPlaybooksResponse, PairRequest,
-    PairResponse, PlaybookInfo,
+    ListActiveRunsResponse, ListPlaybooksRequest, ListPlaybooksResponse, PairRequest, PairResponse,
+    PlaybookInfo,
 };
 use crate::ipc::traits::IpcClient;
 use crate::types::errors::IpcError;
@@ -322,9 +322,7 @@ ACTIVE RUNS
 // =============================================================================
 
 /// Lists available playbooks with metadata for intent matching.
-pub async fn list_playbooks<C: IpcClient>(
-    client: &C,
-) -> Result<ListPlaybooksResponse, IpcError> {
+pub async fn list_playbooks<C: IpcClient>(client: &C) -> Result<ListPlaybooksResponse, IpcError> {
     let request = ListPlaybooksRequest {};
     client.request("/api/playbooks", &request).await
 }
@@ -673,7 +671,11 @@ mod tests {
                     },
                 ],
                 best_for: vec!["PRDs".to_string(), "specs".to_string()],
-                keywords: vec!["write".to_string(), "document".to_string(), "prd".to_string()],
+                keywords: vec![
+                    "write".to_string(),
+                    "document".to_string(),
+                    "prd".to_string(),
+                ],
                 initialization: PlaybookInitHints {
                     expects_document: true,
                     expects_goal: false,

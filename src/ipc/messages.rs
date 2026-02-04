@@ -1052,9 +1052,13 @@ pub enum PairResponse {
     Joined(PairJoined),
     NeedsSelection(PairNeedsSelection),
     #[serde(rename = "none")]
-    NoneAvailable { message: String },
+    NoneAvailable {
+        message: String,
+    },
     ProjectMismatch(PairProjectMismatch),
-    Error { error: String },
+    Error {
+        error: String,
+    },
 }
 
 // ===== LIST ACTIVE RUNS =====

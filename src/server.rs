@@ -392,13 +392,11 @@ impl<C: IpcClient + 'static> HotwiredMcp<C> {
         }
     }
 
-    #[tool(
-        description = "Join an existing workflow run as a second agent. \
+    #[tool(description = "Join an existing workflow run as a second agent. \
         Called by /pair command. Automatically finds runs that need a second agent. \
         Returns: 'joined' with your protocol and context, \
         'needs_selection' (multiple runs available, select in app), \
-        'none' (no runs need pairing), or 'project_mismatch' (wrong directory)."
-    )]
+        'none' (no runs need pairing), or 'project_mismatch' (wrong directory).")]
     async fn pair(
         &self,
         Parameters(params): Parameters<PairRequest>,
@@ -415,12 +413,10 @@ impl<C: IpcClient + 'static> HotwiredMcp<C> {
         }
     }
 
-    #[tool(
-        description = "List active or resumable workflow runs. \
+    #[tool(description = "List active or resumable workflow runs. \
         Use this before /hotwire to check if there are existing runs to continue. \
         If my_role is set for a run, you were previously attached to it. \
-        Optionally filter by project path or Zellij session."
-    )]
+        Optionally filter by project path or Zellij session.")]
     async fn list_active_runs(
         &self,
         Parameters(params): Parameters<ListActiveRunsRequest>,

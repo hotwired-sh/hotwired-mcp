@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/hotwired-sh/hotwired-mcp/compare/v1.1.1...v1.2.0) (2026-05-05)
+
+
+### Features
+
+* add Claude Code Channels capability and hotwired_reply tool ([6882b7f](https://github.com/hotwired-sh/hotwired-mcp/commit/6882b7f5eb626d552886165d4e421ef4b2b391a9))
+
 ## [1.1.1](https://github.com/hotwired-sh/hotwired-mcp/compare/v1.1.0...v1.1.1) (2026-02-04)
 
 

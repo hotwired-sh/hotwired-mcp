@@ -1,4 +1,5 @@
 use crate::ipc::messages::{
+    ChannelReplyRequest,
     DocArtifactAcceptSuggestionRequest,
     DocArtifactAddCommentRequest,
     DocArtifactCreateRequest,
@@ -30,7 +31,7 @@ use crate::ipc::messages::{
     TaskCompleteRequest,
 };
 use crate::ipc::traits::IpcClient;
-use crate::tools::{artifacts, protocol, status, terminal};
+use crate::tools::{artifacts, channel, protocol, status, terminal};
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
     model::*,
@@ -40,6 +41,9 @@ use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct HotwiredMcp<C: IpcClient> {
+    // The router is consumed via the rmcp `#[tool_handler]` macro; rustc's
+    // dead-code analysis cannot see that path, so silence it explicitly.
+    #[allow(dead_code)]
     tool_router: ToolRouter<Self>,
     client: Arc<C>,
 }
@@ -898,17 +902,58 @@ impl<C: IpcClient + 'static> HotwiredMcp<C> {
             ))])),
         }
     }
+
+    #[tool(
+        description = "Acknowledge a Hotwired channel message that arrived as a <channel source=\"hotwired-mcp\" ...> tag. \
+        Status must be one of: received, working, completed, error. \
+        If the channel notification carried a message_id in its meta attributes, echo it so the orchestrator can correlate the reply."
+    )]
+    async fn hotwired_reply(
+        &self,
+        Parameters(params): Parameters<ChannelReplyRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        match channel::submit_reply(&*self.client, &params).await {
+            Ok(()) => Ok(CallToolResult::success(vec![Content::text(
+                channel::format_reply_ack(&params),
+            )])),
+            Err(e) => Ok(CallToolResult::success(vec![Content::text(format!(
+                "Failed to submit channel reply: {}",
+                e
+            ))])),
+        }
+    }
+}
+
+/// Experimental MCP capability key for Claude Code Channels.
+/// When this capability is declared, Claude Code (launched with `--channels server:hotwired-mcp`)
+/// will deliver channel notifications emitted by this server as `<channel>` tags in the
+/// agent's input. See: https://code.claude.com/docs/en/channels
+pub const CLAUDE_CHANNEL_CAPABILITY: &str = "claude/channel";
+
+/// JSON-RPC method name for channel notifications, per the Claude Code Channels spec.
+pub const CHANNEL_NOTIFICATION_METHOD: &str = "notifications/claude/channel";
+
+fn build_server_capabilities() -> ServerCapabilities {
+    let mut experimental = std::collections::BTreeMap::new();
+    experimental.insert(
+        CLAUDE_CHANNEL_CAPABILITY.to_string(),
+        serde_json::Map::new(),
+    );
+    ServerCapabilities::builder()
+        .enable_tools()
+        .enable_experimental_with(experimental)
+        .build()
 }
 
 // Implement the server handler
 #[tool_handler]
 impl<C: IpcClient + 'static> rmcp::ServerHandler for HotwiredMcp<C> {
     fn get_info(&self) -> ServerInfo {
-        ServerInfo {
-            instructions: Some("Hotwired MCP server for multi-agent workflow coordination".into()),
-            capabilities: ServerCapabilities::builder().enable_tools().build(),
-            ..Default::default()
-        }
+        ServerInfo::new(build_server_capabilities()).with_instructions(
+            "Hotwired MCP server for multi-agent workflow coordination. \
+             Messages from Hotwired and other agents may arrive as <channel source=\"hotwired-mcp\" ...> tags. \
+             Acknowledge them with the hotwired_reply tool when appropriate.",
+        )
     }
 }
 
@@ -1162,5 +1207,99 @@ mod tests {
 
         assert_eq!(result.is_error, Some(false));
         assert_eq!(result.content.len(), 1);
+    }
+
+    #[test]
+    fn test_server_capabilities_declare_claude_channel() {
+        let caps = build_server_capabilities();
+        let experimental = caps
+            .experimental
+            .as_ref()
+            .expect("server must declare experimental capabilities");
+        assert!(
+            experimental.contains_key(CLAUDE_CHANNEL_CAPABILITY),
+            "experimental capabilities must include {} (got keys: {:?})",
+            CLAUDE_CHANNEL_CAPABILITY,
+            experimental.keys().collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn test_server_capabilities_serialize_to_claude_channel_key() {
+        let caps = build_server_capabilities();
+        let json = serde_json::to_value(&caps).expect("capabilities must serialize");
+        let experimental = json
+            .get("experimental")
+            .expect("experimental key must be present in serialized capabilities");
+        assert!(
+            experimental
+                .as_object()
+                .map(|m| m.contains_key("claude/channel"))
+                .unwrap_or(false),
+            "serialized experimental must contain literal key \"claude/channel\"; got {}",
+            experimental
+        );
+    }
+
+    #[test]
+    fn test_server_capabilities_keep_tools_enabled() {
+        let caps = build_server_capabilities();
+        assert!(
+            caps.tools.is_some(),
+            "tools capability must remain enabled alongside channels"
+        );
+    }
+
+    #[test]
+    fn test_channel_notification_method_constant() {
+        assert_eq!(CHANNEL_NOTIFICATION_METHOD, "notifications/claude/channel");
+    }
+
+    #[test]
+    fn test_get_info_includes_instructions() {
+        let mock = MockIpcClient::new();
+        let server = HotwiredMcp::new(mock);
+        let info = <HotwiredMcp<MockIpcClient> as rmcp::ServerHandler>::get_info(&server);
+        let instructions = info
+            .instructions
+            .as_ref()
+            .expect("server info must include instructions");
+        assert!(instructions.contains("hotwired-mcp"));
+        assert!(instructions.contains("hotwired_reply"));
+    }
+
+    #[tokio::test]
+    async fn test_hotwired_reply_minimal_succeeds() {
+        use crate::ipc::messages::ChannelReplyStatus;
+
+        let mock = MockIpcClient::new();
+        let server = HotwiredMcp::new(mock);
+
+        let params = ChannelReplyRequest {
+            status: ChannelReplyStatus::Received,
+            detail: None,
+            message_id: None,
+        };
+
+        let result = server.hotwired_reply(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
+        assert_eq!(result.content.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_hotwired_reply_with_message_id_succeeds() {
+        use crate::ipc::messages::ChannelReplyStatus;
+
+        let mock = MockIpcClient::new();
+        let server = HotwiredMcp::new(mock);
+
+        let params = ChannelReplyRequest {
+            status: ChannelReplyStatus::Completed,
+            detail: Some("done".into()),
+            message_id: Some("evt-7".into()),
+        };
+
+        let result = server.hotwired_reply(Parameters(params)).await.unwrap();
+        assert_eq!(result.is_error, Some(false));
     }
 }

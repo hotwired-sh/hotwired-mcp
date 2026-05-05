@@ -344,7 +344,7 @@ No playbooks available.
     let playbooks_list: String = response
         .playbooks
         .iter()
-        .map(|pb| format_single_playbook(pb))
+        .map(format_single_playbook)
         .collect::<Vec<_>>()
         .join("\n---\n\n");
 

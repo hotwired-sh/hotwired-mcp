@@ -1145,3 +1145,55 @@ pub struct PlaybookInfo {
 pub struct ListPlaybooksResponse {
     pub playbooks: Vec<PlaybookInfo>,
 }
+
+// ===== CHANNEL REPLY =====
+//
+// Acknowledges receipt of a Hotwired channel message (delivered as a
+// `<channel source="hotwired-mcp" ...>` tag in the agent's input). The
+// reply is forwarded to hotwired-core so that orchestrators / other
+// agents can observe agent-level acknowledgements.
+
+/// Status enum for channel replies.
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ChannelReplyStatus {
+    /// Acknowledged receipt; not yet acted on.
+    Received,
+    /// Currently working on the request.
+    Working,
+    /// Completed the requested work.
+    Completed,
+    /// Could not complete; see `detail`.
+    Error,
+}
+
+impl std::fmt::Display for ChannelReplyStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ChannelReplyStatus::Received => f.write_str("received"),
+            ChannelReplyStatus::Working => f.write_str("working"),
+            ChannelReplyStatus::Completed => f.write_str("completed"),
+            ChannelReplyStatus::Error => f.write_str("error"),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ChannelReplyRequest {
+    /// Acknowledgement state for the most-recently-delivered channel message.
+    pub status: ChannelReplyStatus,
+    /// Optional human-readable detail to attach to the reply.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+    /// Optional message ID being acknowledged. If the channel notification
+    /// included `meta.message_id`, echo it here so Hotwired can correlate.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message_id: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ChannelReplyResponse {
+    pub success: bool,
+}

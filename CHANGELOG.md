@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/hotwired-sh/hotwired-mcp/compare/v1.2.0...v1.2.1) (2026-05-19)
+
+
+### Bug Fixes
+
+* retrigger publish after npm token rotation ([8b32628](https://github.com/hotwired-sh/hotwired-mcp/commit/8b326285925041d59c28c724f077da2c7171fefd))
+
 # [1.2.0](https://github.com/hotwired-sh/hotwired-mcp/compare/v1.1.1...v1.2.0) (2026-05-05)
 
 
